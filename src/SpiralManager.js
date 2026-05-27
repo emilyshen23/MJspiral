@@ -1,8 +1,8 @@
 import { createCardMesh, updateCardTextures } from './CardMesh.js';
 import { getScale } from './RotationMapper.js';
 
-const POOL_SIZE = 15;
-const SPACING = 1 / 14;
+const POOL_SIZE = 120;
+const SPACING = 1 / 112;
 const SCROLL_SPEED = 1 / 50; // t-units per second (half speed)
 const BUFFER = SPACING * 2;
 
@@ -51,8 +51,8 @@ export class SpiralManager {
     const point = this.path.getPointAt(clampedT);
     card.position.set(point.x, point.y, point.z);
 
-    // Revolving door: only Y rotation, never tilt
-    const naturalRotY = (Math.PI * 0.67) * Math.cos(Math.PI * clampedT);
+    // Stacked cards: all nearly edge-on at ~87°, like a horizontal card stack
+    const naturalRotY = Math.PI * 0.483; // ~87 degrees
     card.userData.naturalRotY = naturalRotY;
     card.rotation.x = 0;
     if (!card.userData.hoverLock) {
