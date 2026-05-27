@@ -1,11 +1,10 @@
 import { createCardMesh, updateCardTextures } from './CardMesh.js';
-import { getYRotation, getScale, getZRotation } from './RotationMapper.js';
+import { getYRotation, getScale } from './RotationMapper.js';
 
-const POOL_SIZE = 12;
-const VISIBLE_CARDS = 9;
-const SPACING = 1 / VISIBLE_CARDS;
+const POOL_SIZE = 60;
+const SPACING = 1 / 54;
 const SCROLL_SPEED = 1 / 25; // t-units per second
-const BUFFER = SPACING; // recycle buffer beyond 0–1
+const BUFFER = SPACING * 2;
 
 export class SpiralManager {
   constructor(path, textures, scene) {
@@ -14,11 +13,11 @@ export class SpiralManager {
     this.scene = scene;
     this.paused = false;
     this.cards = [];
-    this.cardIndices = [];
 
-    // Initial offset: card at index 1 (2H) should sit at t=0.5
-    // Card 0 gets t = 0.5 - SPACING, card 1 gets t = 0.5, etc.
-    const startT = 0.5 - SPACING;
+    // Distribute cards evenly across the full path range 0–1
+    // Center the distribution so cards fill the visible path
+    const totalSpan = (POOL_SIZE - 1) * SPACING;
+    const startT = (1 - totalSpan) / 2; // center the block
 
     for (let i = 0; i < POOL_SIZE; i++) {
       const cardIndex = (i % 9) + 1; // 1-9 cycling
@@ -26,15 +25,14 @@ export class SpiralManager {
       const back = textures.getBack(cardIndex);
       const card = createCardMesh(front, back);
 
-      const t = startT + i * SPACING;
-      card.userData.t = t;
+      card.userData.t = startT + i * SPACING;
       card.userData.cardIndex = cardIndex;
 
       this.cards.push(card);
       scene.add(card);
     }
 
-    // Next card index to assign when recycling
+    // Track cycling index for seamless 1-9 repetition
     this.nextCardIndex = (POOL_SIZE % 9) + 1;
 
     this._positionAllCards();
@@ -48,21 +46,15 @@ export class SpiralManager {
 
   _positionCard(card) {
     const t = card.userData.t;
-
-    // Clamp t to 0–1 for path sampling, but allow cards slightly outside
     const clampedT = Math.max(0, Math.min(1, t));
 
     const point = this.path.getPointAt(clampedT);
-    const tangent = this.path.getTangentAt(clampedT);
-
     card.position.set(point.x, point.y, point.z);
 
-    // Y rotation: front face at center, back face at edges
-    const yRot = getYRotation(clampedT);
-    card.rotation.y = yRot;
-
-    // Z rotation: tilt to follow curve
-    card.rotation.z = getZRotation(tangent);
+    // Only Y-axis rotation — like flipping a playing card
+    card.rotation.x = 0;
+    card.rotation.y = getYRotation(clampedT);
+    card.rotation.z = 0;
 
     // Scale: larger at center, smaller at edges
     const s = getScale(clampedT);
@@ -70,16 +62,22 @@ export class SpiralManager {
 
     // Z-depth: cards closer to center render in front
     const centerDist = Math.abs(clampedT - 0.5);
-    card.position.z = 0.5 - centerDist;
+    card.position.z = 0.2 - centerDist * 0.4;
+
+    // Hide cards outside the visible range
+    const visible = t >= -BUFFER && t <= 1.0 + BUFFER;
+    card.visible = visible;
 
     // Fade out cards near edges
-    const edgeFade = clampedT < 0.1
-      ? clampedT / 0.1
-      : clampedT > 0.9
-        ? (1 - clampedT) / 0.1
-        : 1;
-    card.userData.frontMat.opacity = edgeFade;
-    card.userData.backMat.opacity = edgeFade;
+    if (visible) {
+      const edgeFade = clampedT < 0.1
+        ? clampedT / 0.1
+        : clampedT > 0.9
+          ? (1 - clampedT) / 0.1
+          : 1;
+      card.userData.frontMat.opacity = edgeFade;
+      card.userData.backMat.opacity = edgeFade;
+    }
   }
 
   update(delta) {
@@ -88,9 +86,9 @@ export class SpiralManager {
     for (const card of this.cards) {
       card.userData.t += SCROLL_SPEED * delta;
 
-      // Recycle: when card goes past the bottom, wrap to top
+      // Recycle: when card exits bottom, wrap to top
       if (card.userData.t > 1.0 + BUFFER) {
-        // Find the smallest t to place this card before it
+        // Find the smallest t among all cards
         let minT = Infinity;
         for (const other of this.cards) {
           if (other !== card && other.userData.t < minT) {
@@ -99,7 +97,7 @@ export class SpiralManager {
         }
         card.userData.t = minT - SPACING;
 
-        // Cycle texture
+        // Cycle texture through 1-9
         card.userData.cardIndex = this.nextCardIndex;
         updateCardTextures(
           card,
@@ -114,9 +112,9 @@ export class SpiralManager {
   }
 
   getCardMeshes() {
-    // Return all child meshes for raycasting
     const meshes = [];
     for (const card of this.cards) {
+      if (!card.visible) continue;
       card.traverse(child => {
         if (child.isMesh) meshes.push(child);
       });

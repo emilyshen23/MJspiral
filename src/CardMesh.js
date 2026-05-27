@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-const CARD_WIDTH = 2.1;
-const CARD_HEIGHT = CARD_WIDTH * (9 / 16); // 16:9 → ~1.18
+const CARD_WIDTH = 0.84;
+const CARD_HEIGHT = CARD_WIDTH * (9 / 16); // 16:9 → ~0.47
 const SEGMENTS_X = 32;
 const SEGMENTS_Y = 20;
-const BEND_AMOUNT = 0.15;
+const BEND_AMOUNT = 0.06;
 
 let sharedAlphaMap = null;
 

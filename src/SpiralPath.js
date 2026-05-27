@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // Coordinate transform: center at (427, 476), flip Y, scale by 1/100
 const ORIGIN_X = 427;
 const ORIGIN_Y = 476;
-const SCALE = 1 / 100;
+const SCALE = 0.4 / 100;
 
 function tx(x) { return (x - ORIGIN_X) * SCALE; }
 function ty(y) { return -(y - ORIGIN_Y) * SCALE; }
