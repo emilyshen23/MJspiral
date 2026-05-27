@@ -1,9 +1,9 @@
-const MAX_ROTATION = (105 * Math.PI) / 180; // 105 degrees
+const MAX_ROTATION = (75 * Math.PI) / 180; // 75 degrees at edges
 
 /**
  * Get Y-axis rotation for a card at position t (0–1 along path).
- * At t=0 and t=1 (extremes), rotation is ±105° (showing back face).
- * At t=0.5 (center), rotation is 0 (showing front face).
+ * Smooth sine curve: ~75° edge-on at top (t=0) and bottom (t=1),
+ * 0° face-forward at center (t=0.5).
  */
 export function getYRotation(t) {
   return MAX_ROTATION * Math.cos(Math.PI * t);
@@ -11,10 +11,14 @@ export function getYRotation(t) {
 
 /**
  * Get uniform scale for a card at position t.
- * 1.0 at center (t=0.5), 0.6 at edges (t=0 or t=1).
+ * Graduated scale: center=1.4, then steps down toward edges.
+ * Uses a power curve for steeper falloff away from center.
  */
 export function getScale(t) {
-  return 0.6 + 0.4 * (1 - 2 * Math.abs(t - 0.5));
+  // 0 at edges, 1 at center
+  const centerness = 1 - 2 * Math.abs(t - 0.5);
+  // Power curve makes falloff steeper near edges
+  return 0.35 + 1.05 * Math.pow(centerness, 1.5);
 }
 
 /**

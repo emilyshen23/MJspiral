@@ -1,9 +1,9 @@
 import { createCardMesh, updateCardTextures } from './CardMesh.js';
-import { getYRotation, getScale } from './RotationMapper.js';
+import { getScale } from './RotationMapper.js';
 
-const POOL_SIZE = 60;
-const SPACING = 1 / 54;
-const SCROLL_SPEED = 1 / 25; // t-units per second
+const POOL_SIZE = 15;
+const SPACING = 1 / 14;
+const SCROLL_SPEED = 1 / 50; // t-units per second (half speed)
 const BUFFER = SPACING * 2;
 
 export class SpiralManager {
@@ -11,7 +11,7 @@ export class SpiralManager {
     this.path = path;
     this.textures = textures;
     this.scene = scene;
-    this.paused = false;
+    this.speedMultiplier = 1.0;
     this.cards = [];
 
     // Distribute cards evenly across the full path range 0–1
@@ -51,18 +51,22 @@ export class SpiralManager {
     const point = this.path.getPointAt(clampedT);
     card.position.set(point.x, point.y, point.z);
 
-    // Only Y-axis rotation — like flipping a playing card
+    // Revolving door: only Y rotation, never tilt
+    const naturalRotY = (Math.PI * 0.67) * Math.cos(Math.PI * clampedT);
+    card.userData.naturalRotY = naturalRotY;
     card.rotation.x = 0;
-    card.rotation.y = getYRotation(clampedT);
+    if (!card.userData.hoverLock) {
+      card.rotation.y = naturalRotY;
+    }
     card.rotation.z = 0;
 
     // Scale: larger at center, smaller at edges
     const s = getScale(clampedT);
     card.scale.setScalar(s);
 
-    // Z-depth: cards closer to center render in front
-    const centerDist = Math.abs(clampedT - 0.5);
-    card.position.z = 0.2 - centerDist * 0.4;
+    // Z-depth: cards further along the path (lower t = further ahead)
+    // render in front of cards behind them (higher t = entering later)
+    card.position.z = clampedT * 0.5;
 
     // Hide cards outside the visible range
     const visible = t >= -BUFFER && t <= 1.0 + BUFFER;
@@ -77,14 +81,13 @@ export class SpiralManager {
           : 1;
       card.userData.frontMat.opacity = edgeFade;
       card.userData.backMat.opacity = edgeFade;
+      card.userData.shadowMat.opacity = edgeFade * 0.7;
     }
   }
 
   update(delta) {
-    if (this.paused) return;
-
     for (const card of this.cards) {
-      card.userData.t += SCROLL_SPEED * delta;
+      card.userData.t += SCROLL_SPEED * this.speedMultiplier * delta;
 
       // Recycle: when card exits bottom, wrap to top
       if (card.userData.t > 1.0 + BUFFER) {

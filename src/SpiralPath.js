@@ -4,10 +4,13 @@ import * as THREE from 'three';
 // Coordinate transform: center at (427, 476), flip Y, scale by 1/100
 const ORIGIN_X = 427;
 const ORIGIN_Y = 476;
-const SCALE = 0.4 / 100;
+// Bake the previous group scale (1.32, 2.04) directly into path coords
+// so the parent group can use uniform scale and avoid shear on rotated cards
+const SCALE_X = (0.4 / 100) * 1.32;
+const SCALE_Y = (0.4 / 100) * 2.04;
 
-function tx(x) { return (x - ORIGIN_X) * SCALE; }
-function ty(y) { return -(y - ORIGIN_Y) * SCALE; }
+function tx(x) { return (x - ORIGIN_X) * SCALE_X; }
+function ty(y) { return -(y - ORIGIN_Y) * SCALE_Y; }
 function p(x, y) { return new THREE.Vector3(tx(x), ty(y), 0); }
 
 export function createSpiralPath() {

@@ -19,7 +19,7 @@ async function init() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMapping = THREE.NoToneMapping;
 
   // Scene
   const scene = new THREE.Scene();
@@ -34,12 +34,8 @@ async function init() {
   camera.position.z = 7;
 
   // Lights
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambient);
-
-  const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-  directional.position.set(2, 4, 5);
-  scene.add(directional);
 
   // Post-processing
   const composer = new EffectComposer(renderer);
@@ -56,9 +52,13 @@ async function init() {
   // Load textures
   const textures = await preloadTextures();
 
-  // Build spiral
+  // Build spiral inside a container group scaled to fill viewport height
+  const spiralGroup = new THREE.Group();
+  spiralGroup.scale.set(1, 1, 1); // uniform scale — non-uniform baked into path coords
+  scene.add(spiralGroup);
+
   const path = createSpiralPath();
-  const spiralManager = new SpiralManager(path, textures, scene);
+  const spiralManager = new SpiralManager(path, textures, spiralGroup);
   const hoverManager = new HoverManager(camera, canvas, spiralManager);
 
   // Animation loop
@@ -68,8 +68,9 @@ async function init() {
     requestAnimationFrame(animate);
 
     const delta = clock.getDelta();
+    const elapsed = clock.elapsedTime;
     spiralManager.update(delta);
-    hoverManager.update();
+    hoverManager.update(delta, elapsed);
     composer.render();
   }
 
